@@ -1,0 +1,55 @@
+---
+title: "Homework 3"
+format: html
+author: Liz Peterson
+date: 10-23-2024
+editor_options: 
+  chunk_output_type: console
+---
+
+## Load libraries
+```{r}
+library(tidyverse)
+library(here)
+library(sf)
+library(terra)
+library(tmap)
+```
+
+## Read in data
+```{r}
+# Read in roads data
+roads <- st_read(here('data','gis_osm_roads_free_1.gpkg'))
+
+# Read in houses data
+houses <- st_read(here('data','gis_osm_buildings_a_free_1.gpkg'))
+
+# Read in socioeconomic data
+socioeconomic <- st_read(here('data','ACS_2019_5YR_TRACT_48_TEXAS.gdb'))
+```
+
+## Create blackout mask
+```{r}
+
+```
+
+## Exclude highways from the cropped blackout mask
+```{r}
+
+```
+
+## Identify homes likely impacted by blackouts
+```{r}
+
+```
+
+## Identify the census tracts likely impacted by blackout
+```{r}
+
+```
+
+
+
+
+
+
