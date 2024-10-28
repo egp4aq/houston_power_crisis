@@ -25,9 +25,37 @@ roads <- st_read(here('data','gis_osm_roads_free_1.gpkg'))
 houses <- st_read(here('data','gis_osm_buildings_a_free_1.gpkg'))
 
 # Read in socioeconomic data
-socioeconomic <- st_read(here('data','ACS_2019_5YR_TRACT_48_TEXAS.gdb'))
+texas <- st_read(here('data','ACS_2019_5YR_TRACT_48_TEXAS.gdb'), layer = 'ACS_2019_5YR_TRACT_48_TEXAS')
+
+# Read in lights data
+lights1 <- rast(here("data/VNP46A1/VNP46A1.A2021038.h08v05.001.2021039064328.tif")) 
+lights2 <- rast(here("data/VNP46A1/VNP46A1.A2021038.h08v06.001.2021039064329.tif"))
+lights3 <- rast(here("data/VNP46A1/VNP46A1.A2021047.h08v05.001.2021048091106.tif"))
+lights4 <- rast(here("data/VNP46A1/VNP46A1.A2021047.h08v06.001.2021048091105.tif"))
 ```
 
+```{r}
+# Preliminary map to ensure data was read in correctly
+tm_shape(texas) +
+  tm_polygons() +
+tm_shape(houses) +
+  tm_symbols()
+```
+
+```{r}
+tm_shape(texas) +
+  tm_borders() +
+tm_shape(lights1) +
+  tm_raster(lights1)
+```
+
+
+```{r}
+# Find the change in night lights intensity (presumably) caused by the storm
+# Hint: create a raster object for 2021-02-07 and 2021-02-16
+```
+
+ 
 ## Create blackout mask
 ```{r}
 
@@ -47,9 +75,5 @@ socioeconomic <- st_read(here('data','ACS_2019_5YR_TRACT_48_TEXAS.gdb'))
 ```{r}
 
 ```
-
-
-
-
 
 
