@@ -26,27 +26,47 @@ houses <- st_read(here('data','gis_osm_buildings_a_free_1.gpkg'))
 
 # Read in socioeconomic data
 texas <- st_read(here('data','ACS_2019_5YR_TRACT_48_TEXAS.gdb'), layer = 'ACS_2019_5YR_TRACT_48_TEXAS')
+income <- st_read(here('data','ACS_2019_5YR_TRACT_48_TEXAS.gdb'), layer = "X19_INCOME")
 
+# Check class of these terms to make sure they are correct
+class(texas)
+class(income)
+                 
 # Read in lights data
-lights1 <- rast(here("data/VNP46A1/VNP46A1.A2021038.h08v05.001.2021039064328.tif")) 
-lights2 <- rast(here("data/VNP46A1/VNP46A1.A2021038.h08v06.001.2021039064329.tif"))
-lights3 <- rast(here("data/VNP46A1/VNP46A1.A2021047.h08v05.001.2021048091106.tif"))
-lights4 <- rast(here("data/VNP46A1/VNP46A1.A2021047.h08v06.001.2021048091105.tif"))
+seven_05_tile <- rast(here("data/VNP46A1/VNP46A1.A2021038.h08v05.001.2021039064328.tif")) 
+seven_06_tile <- rast(here("data/VNP46A1/VNP46A1.A2021038.h08v06.001.2021039064329.tif"))
+sixteen_05_tile <- rast(here("data/VNP46A1/VNP46A1.A2021047.h08v05.001.2021048091106.tif"))
+sixteen_06_tile <- rast(here("data/VNP46A1/VNP46A1.A2021047.h08v06.001.2021048091105.tif"))
 ```
+
+```{r}
+# Merge the two tiles for the same date to create a workable raster
+tile_07 <- merge(seven_05_tile, seven_06_tile)
+tile_16 <- merge(sixteen_05_tile, sixteen_06_tile)
+```
+
+```{r}
+# Check CRS for all information we just read in
+crs(houses)
+crs(texas)
+crs(income)
+crs(tile_07)
+crs(tile_16)
+```
+
 
 ```{r}
 # Preliminary map to ensure data was read in correctly
+tm_shape(tile_07) +
+  tm_raster() +
+tm_shape(tile_16) +
+  tm_raster() +
 tm_shape(texas) +
-  tm_polygons() +
-tm_shape(houses) +
-  tm_symbols()
+  tm_borders()
 ```
 
 ```{r}
-tm_shape(texas) +
-  tm_borders() +
-tm_shape(lights1) +
-  tm_raster(lights1)
+
 ```
 
 
