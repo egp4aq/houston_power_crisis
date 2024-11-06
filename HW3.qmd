@@ -14,6 +14,9 @@ library(here)
 library(sf)
 library(terra)
 library(tmap)
+library(spData)
+library(spDataLarge)
+library(stars)
 ```
 
 ## Read in data
@@ -33,16 +36,16 @@ class(texas)
 class(income)
                  
 # Read in lights data
-seven_05_tile <- rast(here("data/VNP46A1/VNP46A1.A2021038.h08v05.001.2021039064328.tif")) 
-seven_06_tile <- rast(here("data/VNP46A1/VNP46A1.A2021038.h08v06.001.2021039064329.tif"))
-sixteen_05_tile <- rast(here("data/VNP46A1/VNP46A1.A2021047.h08v05.001.2021048091106.tif"))
-sixteen_06_tile <- rast(here("data/VNP46A1/VNP46A1.A2021047.h08v06.001.2021048091105.tif"))
+seven_05_tile <- read_stars(here("data/VNP46A1/VNP46A1.A2021038.h08v05.001.2021039064328.tif")) 
+seven_06_tile <- read_stars(here("data/VNP46A1/VNP46A1.A2021038.h08v06.001.2021039064329.tif"))
+sixteen_05_tile <- read_stars(here("data/VNP46A1/VNP46A1.A2021047.h08v05.001.2021048091106.tif"))
+sixteen_06_tile <- read_stars(here("data/VNP46A1/VNP46A1.A2021047.h08v06.001.2021048091105.tif"))
 ```
 
 ```{r}
 # Merge the two tiles for the same date to create a workable raster
-tile_07 <- merge(seven_05_tile, seven_06_tile)
-tile_16 <- merge(sixteen_05_tile, sixteen_06_tile)
+tile_07 <- st_mosaic(seven_05_tile, seven_06_tile)
+tile_16 <- st_mosaic(sixteen_05_tile, sixteen_06_tile)
 ```
 
 ```{r}
@@ -69,21 +72,62 @@ for (i in 2:length(rast_list)) {
 }
 ```
 
-```{r}
-
-```
-
 
 ```{r}
 # Find the change in night lights intensity (presumably) caused by the storm
-# Hint: create a raster object for 2021-02-07 and 2021-02-16
+# Create a difference raster of the difference in intensity of those two nights
+diff_rast <- tile_07 - tile_16
+diff_rast[diff_rast < 200] <- NA
 ```
 
- 
-## Create blackout mask
 ```{r}
+# Reclassify the diff_rast, where a drop of more than 200 = blackout
 
+# Create reclassification matrix
+# rcl <- matrix(c(200, Inf, 1,
+#                 -Inf, 200, NA),
+#               ncol = 3, byrow = TRUE)
+# # Reclassify raster
+# diff_reclass <- classify(diff_rast, rcl)
 ```
+
+```{r}
+# Vectorize the blackout mask (reclassified difference raster)
+blackout_mask <- diff_rast %>%
+  st_as_sf() %>%
+  st_make_valid()
+```
+
+```{r}
+# Initial map of blackout mask to make sure reclassification worked
+tm_shape(blackout_mask) +
+  tm_polygons()
+```
+
+
+```{r}
+# Crop blackout mask to Houston area
+# Create a matrix of our coordinates
+bounding_box <- st_bbox(c(xmin = -96.5, xmax = -95.4, ymin = 29, ymax = 30.5)) %>%
+  st_as_sfc() %>%
+  st_as_sf() %>%
+  st_set_crs(st_crs(blackout_mask)) %>%
+  st_transform(crs=3083)
+
+blackout_mask <- st_transform(blackout_mask, crs = 3083)
+
+# # Convert coordinates to an sf polygon
+# bounding_box <- st_as_sfc(coords)
+
+# Crop the raster
+blackout_cropped <- st_intersects(blackout_mask, bounding_box)
+```
+
+```{r}
+tm_shape(blackout_cropped) +
+  tm_polygons()
+```
+
 
 ## Exclude highways from the cropped blackout mask
 ```{r}
