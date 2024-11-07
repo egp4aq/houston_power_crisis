@@ -50,10 +50,10 @@ tile_16 <- st_mosaic(sixteen_05_tile, sixteen_06_tile)
 
 ```{r}
 # Check CRS for what we've read in
-crs(houses) == crs(texas)
-crs(tile_07) == crs(texas)
-crs(tile_16) == crs(texas)
-crs(tile_07) == crs(tile_16)
+print(st_crs(houses) == st_crs(texas))
+print(st_crs(tile_07) == st_crs(texas))
+print(st_crs(tile_16) == st_crs(texas))
+print(st_crs(tile_07) == st_crs(tile_16))
 ```
 
 ```{r}
@@ -72,29 +72,17 @@ for (i in 2:length(rast_list)) {
 }
 ```
 
-
 ```{r}
 # Find the change in night lights intensity (presumably) caused by the storm
 # Create a difference raster of the difference in intensity of those two nights
-diff_rast <- tile_07 - tile_16
+diff_rast <- rast(tile_07) - rast(tile_16)
 diff_rast[diff_rast < 200] <- NA
-```
-
-```{r}
-# Reclassify the diff_rast, where a drop of more than 200 = blackout
-
-# Create reclassification matrix
-# rcl <- matrix(c(200, Inf, 1,
-#                 -Inf, 200, NA),
-#               ncol = 3, byrow = TRUE)
-# # Reclassify raster
-# diff_reclass <- classify(diff_rast, rcl)
 ```
 
 ```{r}
 # Vectorize the blackout mask (reclassified difference raster)
 blackout_mask <- diff_rast %>%
-  st_as_sf() %>%
+  st_as_sf(as_points = FALSE, merge = TRUE) %>%
   st_make_valid()
 ```
 
@@ -104,23 +92,21 @@ tm_shape(blackout_mask) +
   tm_polygons()
 ```
 
-
 ```{r}
 # Crop blackout mask to Houston area
 # Create a matrix of our coordinates
-bounding_box <- st_bbox(c(xmin = -96.5, xmax = -95.4, ymin = 29, ymax = 30.5)) %>%
-  st_as_sfc() %>%
-  st_as_sf() %>%
-  st_set_crs(st_crs(blackout_mask)) %>%
-  st_transform(crs=3083)
+bounding_box <- st_bbox(c(xmin = -96.5, xmax = -95.4, ymin = 29, ymax = 30.5),
+                        crs = st_crs(blackout_mask)) %>%
+  st_as_sfc()
 
 blackout_mask <- st_transform(blackout_mask, crs = 3083)
+bounding_box <- st_transform(bounding_box, crs = 3083)
 
 # # Convert coordinates to an sf polygon
 # bounding_box <- st_as_sfc(coords)
 
 # Crop the raster
-blackout_cropped <- st_intersects(blackout_mask, bounding_box)
+blackout_cropped <- st_intersection(blackout_mask, bounding_box)
 ```
 
 ```{r}
