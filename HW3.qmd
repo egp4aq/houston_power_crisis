@@ -22,10 +22,10 @@ library(stars)
 ## Read in data
 ```{r}
 # Read in roads data
-roads <- st_read(here('data','gis_osm_roads_free_1.gpkg'))
+roads <- st_read(here('data','gis_osm_roads_free_1.gpkg'), query = "SELECT * FROM gis_osm_roads_free_1 WHERE fclass='motorway'")
 
 # Read in houses data
-houses <- st_read(here('data','gis_osm_buildings_a_free_1.gpkg'))
+houses <- st_read(here('data','gis_osm_buildings_a_free_1.gpkg'), query = "SELECT * FROM gis_osm_buildings_a_free_1 WHERE (type IS NULL AND name IS NULL) OR type in ('residential', 'apartments', 'house', 'static_caravan', 'detached')")
 
 # Read in socioeconomic data
 texas <- st_read(here('data','ACS_2019_5YR_TRACT_48_TEXAS.gdb'), layer = 'ACS_2019_5YR_TRACT_48_TEXAS')
@@ -44,8 +44,8 @@ sixteen_06_tile <- read_stars(here("data/VNP46A1/VNP46A1.A2021047.h08v06.001.202
 
 ```{r}
 # Merge the two tiles for the same date to create a workable raster
-tile_07 <- st_mosaic(seven_05_tile, seven_06_tile)
-tile_16 <- st_mosaic(sixteen_05_tile, sixteen_06_tile)
+tile_07 <- rast(st_mosaic(seven_05_tile, seven_06_tile))
+tile_16 <- rast(st_mosaic(sixteen_05_tile, sixteen_06_tile))
 ```
 
 ```{r}
@@ -75,13 +75,16 @@ for (i in 2:length(rast_list)) {
 ```{r}
 # Find the change in night lights intensity (presumably) caused by the storm
 # Create a difference raster of the difference in intensity of those two nights
-diff_rast <- rast(tile_07) - rast(tile_16)
+diff_rast <- tile_07 - tile_16
 diff_rast[diff_rast < 200] <- NA
 ```
 
 ```{r}
 # Vectorize the blackout mask (reclassified difference raster)
-blackout_mask <- diff_rast %>%
+# First, convert to polygon so we can use st_as_sf()
+blackout_mask_raster <- as.polygons(diff_rast, na.rm = TRUE)
+
+blackout_mask <- blackout_mask_raster %>%
   st_as_sf(as_points = FALSE, merge = TRUE) %>%
   st_make_valid()
 ```
@@ -99,17 +102,19 @@ bounding_box <- st_bbox(c(xmin = -96.5, xmax = -95.4, ymin = 29, ymax = 30.5),
                         crs = st_crs(blackout_mask)) %>%
   st_as_sfc()
 
+# Change both the mask and bbox to have CRS 3083
 blackout_mask <- st_transform(blackout_mask, crs = 3083)
 bounding_box <- st_transform(bounding_box, crs = 3083)
 
-# # Convert coordinates to an sf polygon
-# bounding_box <- st_as_sfc(coords)
+# Check that CRS updating worked
+print(st_crs(blackout_mask) == st_crs(bounding_box))
 
 # Crop the raster
 blackout_cropped <- st_intersection(blackout_mask, bounding_box)
 ```
 
 ```{r}
+# Plot blackout cropped data to check analysis worked
 tm_shape(blackout_cropped) +
   tm_polygons()
 ```
@@ -117,6 +122,19 @@ tm_shape(blackout_cropped) +
 
 ## Exclude highways from the cropped blackout mask
 ```{r}
+# Identify areas within 200 m of all highways
+
+```
+
+```{r}
+# Create a 200-meter buffer around highways
+highways_buffer <- st_buffer(highways, dist = 200)
+
+# Union the buffered highways to create a single object representing all areas within 200 meters of highways
+highways_buffer_union <- st_union(highways_buffer)
+
+# Exclude the areas within 200 meters of highways from the blackout mask
+blackout_mask_no_highways <- st_difference(blackout_mask, highways_buffer_union)
 
 ```
 
