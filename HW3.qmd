@@ -74,21 +74,39 @@ for (i in 2:length(rast_list)) {
 ```
 
 ```{r}
-# Check crs again
+# Reproject the tiles once more, to make sure plotting will work
+tile_07 <- project(tile_07, crs(texas))
+tile_16 <- project(tile_16, crs(texas))
 ```
-
-```{r}
-# Using the plot function from terra directly
-plot(tile_07, main = "Night Light Intensity - Before Storm")
-plot(tile_16, main = "Night Light Intensity - After Storm")
-```
-
 
 ```{r}
 # Find the change in night lights intensity (presumably) caused by the storm
 # Create a difference raster of the difference in intensity of those two nights
 diff_rast <- tile_07 - tile_16
 diff_rast[diff_rast < 200] <- NA
+# Check again that diff_rast is the same crs as the tiles
+diff_rast <- project(diff_rast, crs(tile_07))
+```
+
+```{r}
+# Define my own breaks for our scaling for the first two plots
+breaks_tiles <- c(0.1, 0.2, 0.4, 0.6, 1.0, 100, 500)
+colors_tiles <- c("lightblue", "blue", "darkblue", "purple", "black")
+
+# Define my own breaks for our scaling for the difference plot
+breaks_diff <- c(0.1, 0.3, 0.5)
+colors_diff <- c("lightblue", "blue", "darkblue", "purple", "black")
+
+# Set up grid for plotting (1 row, 3 columns)
+par(mfrow=c(1,3))
+
+# Plot using terra, using our defined breaks and colors
+plot(tile_07, main = "Night Light Intensity - Before Storm", col = terrain.colors(50), breaks=breaks_tiles, legend = FALSE)
+plot(tile_16, main = "Night Light Intensity - After Storm", col = terrain.colors(50), breaks=breaks_tiles, legend = FALSE)
+plot(diff_rast, main = "Difference", col = terrain.colors(50), breaks=breaks_diff)
+
+# Reset the layout for future
+par(mfrow=c(1,1))
 ```
 
 # Map the night light intensities before and after the storm
