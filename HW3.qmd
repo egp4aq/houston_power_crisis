@@ -9,6 +9,7 @@ editor_options:
 
 ## Load libraries
 ```{r}
+# Read in all necessary libraries
 library(tidyverse)
 library(here)
 library(sf)
@@ -21,10 +22,10 @@ library(stars)
 
 ## Read in data
 ```{r}
-# Read in roads data
+# Read in roads data with query to only select highways 
 roads <- st_read(here('data','gis_osm_roads_free_1.gpkg'), query = "SELECT * FROM gis_osm_roads_free_1 WHERE fclass='motorway'")
 
-# Read in houses data
+# Read in houses data with query to only select homes 
 houses <- st_read(here('data','gis_osm_buildings_a_free_1.gpkg'), query = "SELECT * FROM gis_osm_buildings_a_free_1 WHERE (type IS NULL AND name IS NULL) OR type in ('residential', 'apartments', 'house', 'static_caravan', 'detached')")
 
 # Read in socioeconomic data
@@ -35,7 +36,7 @@ income <- st_read(here('data','ACS_2019_5YR_TRACT_48_TEXAS.gdb'), layer = "X19_I
 class(texas)
 class(income)
                  
-# Read in lights data
+# Read in lights data --> there are two separate tiles for the same date
 seven_05_tile <- read_stars(here("data/VNP46A1/VNP46A1.A2021038.h08v05.001.2021039064328.tif")) 
 seven_06_tile <- read_stars(here("data/VNP46A1/VNP46A1.A2021038.h08v06.001.2021039064329.tif"))
 sixteen_05_tile <- read_stars(here("data/VNP46A1/VNP46A1.A2021047.h08v05.001.2021048091106.tif"))
@@ -73,10 +74,32 @@ for (i in 2:length(rast_list)) {
 ```
 
 ```{r}
+# Check crs again
+```
+
+```{r}
+# Using the plot function from terra directly
+plot(tile_07, main = "Night Light Intensity - Before Storm")
+plot(tile_16, main = "Night Light Intensity - After Storm")
+```
+
+
+```{r}
 # Find the change in night lights intensity (presumably) caused by the storm
 # Create a difference raster of the difference in intensity of those two nights
 diff_rast <- tile_07 - tile_16
 diff_rast[diff_rast < 200] <- NA
+```
+
+# Map the night light intensities before and after the storm
+```{r}
+# Plot raster using stars with tmap
+tm_shape(tile_07) + 
+  tm_raster(palette = "YlGnBu", title = "Night Light Intensity (Before Storm)")
+
+tm_shape(tile_16) + 
+  tm_raster(palette = "YlOrRd", title = "Night Light Intensity (After Storm)")
+
 ```
 
 ```{r}
@@ -111,6 +134,9 @@ print(st_crs(blackout_mask) == st_crs(bounding_box))
 
 # Crop the raster
 blackout_cropped <- st_intersection(blackout_mask, bounding_box)
+
+# Make sure there are no invalid geometries
+blackout_cropped <- st_make_valid(blackout_cropped)
 ```
 
 ```{r}
@@ -119,23 +145,40 @@ tm_shape(blackout_cropped) +
   tm_polygons()
 ```
 
-
-## Exclude highways from the cropped blackout mask
 ```{r}
-# Identify areas within 200 m of all highways
+# Check CRS before transformation
+print(st_crs(roads))  # Should match CRS of blackout mask
+print(st_crs(blackout_mask))  # Should match CRS of roads
+print(st_crs(bounding_box))  # Should match CRS of blackout mask and roads
 
+# Another chance to transform CRS
+roads <- st_transform(roads, crs = st_crs(blackout_mask))
+blackout_mask <- st_transform(blackout_mask, crs = st_crs(roads))
+bounding_box <- st_transform(bounding_box, crs = st_crs(blackout_mask))
 ```
 
 ```{r}
+# Check if all layers align visually
+tm_shape(roads) +
+  tm_lines() +
+  tm_layout() +
+tm_shape(blackout_mask) +
+  tm_borders(col = "blue") +
+  tm_layout()
+
+```
+
+
+## Exclude highways from the cropped blackout mask
+```{r}
 # Create a 200-meter buffer around highways
-highways_buffer <- st_buffer(highways, dist = 200)
+roads_buffer <- st_buffer(roads, dist = 200)
+roads_buffer <- st_transform(roads_buffer, st_crs(blackout_cropped))
 
-# Union the buffered highways to create a single object representing all areas within 200 meters of highways
-highways_buffer_union <- st_union(highways_buffer)
+# Make sure there are no issues with invalid geometries
+roads_buffer <- st_make_valid(roads_buffer)
 
-# Exclude the areas within 200 meters of highways from the blackout mask
-blackout_mask_no_highways <- st_difference(blackout_mask, highways_buffer_union)
-
+mask_wo_hwys <- st_difference(blackout_cropped, roads_buffer)
 ```
 
 ## Identify homes likely impacted by blackouts
