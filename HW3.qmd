@@ -127,7 +127,7 @@ tm_shape(blackout_mask) +
 ```{r}
 # Crop blackout mask to Houston area
 # Create a matrix of our coordinates
-bounding_box <- st_bbox(c(xmin = -96.5, xmax = -95.4, ymin = 29, ymax = 30.5),
+bounding_box <- st_bbox(c(xmin = -96.5, xmax = -94.5, ymin = 29, ymax = 30.5),
                         crs = st_crs(blackout_mask)) %>%
   st_as_sfc()
 
@@ -229,13 +229,21 @@ tm_shape(houses_blackout) +
 
 ## Identify the census tracts likely impacted by blackout
 ```{r}
+# Rename column in income df so we can join
 income <- income %>%
   rename(GEOID_Data = GEOID)
+
 # Join median household income from previous 12 months to the census tract
 texas_with_income <- left_join(texas, income, by = "GEOID_Data")
 
+# Select GEOID and median income column
 texas_with_income <- texas_with_income %>%
-  select(GEOID, B19013e1)
+  select(GEOID_Data, B19013e1) %>%
+  rename(median_income = B19013e1)
 ```
 
+```{r}
+tm_shape(texas_with_income, bbox = bounding_box) +
+  tm_polygons()
+```
 
