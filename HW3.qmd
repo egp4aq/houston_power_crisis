@@ -229,7 +229,13 @@ tm_shape(houses_blackout) +
 
 ## Identify the census tracts likely impacted by blackout
 ```{r}
+income <- income %>%
+  rename(GEOID_Data = GEOID)
+# Join median household income from previous 12 months to the census tract
+texas_with_income <- left_join(texas, income, by = "GEOID_Data")
 
+texas_with_income <- texas_with_income %>%
+  select(GEOID, B19013e1)
 ```
 
 
