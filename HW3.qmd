@@ -2,9 +2,10 @@
 title: "Homework 3"
 format: html
 author: Liz Peterson
-date: 10-23-2024
+date: 11-12-2024
 editor_options: 
   chunk_output_type: console
+warning: FALSE
 ---
 
 ## Load libraries
@@ -90,22 +91,13 @@ diff_rast <- project(diff_rast, crs(tile_07))
 
 # Map the night light intensities before and after the storm and the difference
 ```{r}
-# Define my own breaks for our scaling for the first two plots
-breaks_tiles <- c(0.1, 0.2, 0.4, 0.6, 1.0, 100, 500)
-
-# Define my own breaks for our scaling for the difference plot
-breaks_diff <- c(0.1, 0.3, 0.5)
-
-# Set up grid for plotting (1 row, 3 columns)
-par(mfrow=c(1,3))
+# Define my own breaks for our scaling for the before and after plots
+breaks_tiles <- c(0.1, 1, 10, 100, 200, 300, 400, 500)
+colors <- c("lightblue", "darkblue","purple","darkgrey","black")
 
 # Plot using terra, using our defined breaks and colors
-plot(tile_07, main = "Night Light Intensity - Before Storm", col = terrain.colors(50), breaks=breaks_tiles, legend = FALSE)
-plot(tile_16, main = "Night Light Intensity - After Storm", col = terrain.colors(50), breaks=breaks_tiles, legend = FALSE)
-plot(diff_rast, main = "Difference", col = terrain.colors(50), breaks=breaks_diff, legend = FALSE)
-
-# Reset the layout for future
-par(mfrow=c(1,1))
+plot(tile_07, main = "Night Light Intensity - Before Storm (nW cm^-2sr^-1)", col = colors, breaks=breaks_tiles)
+plot(tile_16, main = "Night Light Intensity - After Storm (nW cm^-2sr^-1)", col = colors, breaks=breaks_tiles)
 ```
 
 ```{r}
@@ -121,7 +113,8 @@ blackout_mask <- blackout_mask_raster %>%
 ```{r}
 # Initial map of blackout mask to make sure reclassification worked
 tm_shape(blackout_mask) +
-  tm_polygons()
+  tm_polygons() +
+tm_layout(main.title = "Initial blackout mask")
 ```
 
 ```{r}
@@ -146,9 +139,12 @@ blackout_cropped <- st_make_valid(blackout_cropped)
 ```
 
 ```{r}
-# Plot blackout cropped data to check analysis worked
+# Plot blackout cropped data to check analysis worked (on top of census data)
+tm_shape(texas, bbox = bounding_box) +
+  tm_polygons() +
 tm_shape(blackout_cropped) +
-  tm_polygons()
+  tm_polygons() +
+tm_layout(main.title = "Blackout mask within Houston")
 ```
 
 ```{r}
@@ -163,16 +159,6 @@ blackout_mask <- st_transform(blackout_mask, crs = st_crs(roads))
 bounding_box <- st_transform(bounding_box, crs = st_crs(blackout_mask))
 ```
 
-```{r}
-# Check if all layers align visually
-tm_shape(roads) +
-  tm_lines() +
-  tm_layout() +
-tm_shape(blackout_cropped) +
-  tm_borders(col = "lightblue") +
-  tm_layout()
-
-```
 
 ## Exclude highways from the cropped blackout mask
 ```{r}
@@ -185,17 +171,12 @@ roads_buffer <- st_make_valid(roads_buffer)
 ```
 
 ```{r}
-# Plot roads buffer to confirm it worked
-tm_shape(roads_buffer) +
-  tm_polygons()
-```
-
-```{r}
 # Use st_union to combine geometries in the buffer
 roads_buffer_union <- st_union(roads_buffer)
 
 tm_shape(roads_buffer_union) +
-  tm_polygons()
+  tm_polygons() +
+tm_layout(main.title = "200-meter buffer around highways")
 ```
 
 ```{r}
@@ -207,7 +188,8 @@ blackout_no_highways <- st_make_valid(blackout_no_highways)
 
 # Check result by plotting
 tm_shape(blackout_no_highways) +
-  tm_polygons()
+  tm_polygons() +
+tm_layout(main.title = "Blackout mask with no houses within 200-meters of a highway")
 ```
 
 ## Identify homes likely impacted by blackouts
@@ -220,12 +202,17 @@ houses_blackout <- houses[blackout_no_highways, ]
 ```
 
 ```{r}
-# Plot houses_blackout to see if it worked
+# Plot the map of homes in Houston that lost power
+tm_shape(texas, bbox = bounding_box) +
+  tm_polygons(col = "lightyellow") +
 tm_shape(blackout_cropped) +
   tm_borders() +
 tm_shape(houses_blackout) +
-  tm_bubbles(col = "red", size = 0.1)
+  tm_bubbles(col = "lightblue", size = 0.05) +
+tm_layout(main.title = "Houses in Houston that lost power")
 ```
+
+According to our houses_blackout object, it seems that 157,970 houses in Houston experienced a blackout.
 
 ## Identify the census tracts likely impacted by blackout
 ```{r}
@@ -244,6 +231,71 @@ texas_with_income <- texas_with_income %>%
 
 ```{r}
 tm_shape(texas_with_income, bbox = bounding_box) +
-  tm_polygons()
+  tm_polygons(col = "median_income",
+              title = "Median Income") +
+  tm_layout(legend.outside = TRUE,
+            legend.width = 0.1) +
+tm_shape(houses_blackout) +
+  tm_bubbles(col = "pink", size = 0.1)
 ```
 
+```{r}
+# Make sure CRS of texas_with_income and houses_blackout match
+texas_with_income <- st_transform(texas_with_income, crs="EPSG:3083")
+houses_blackout <- st_transform(houses_blackout, crs="EPSG:3083")
+
+# Join texas income data with the houses that experienced a blackout
+census_blackout_houses <- st_join(texas_with_income, houses_blackout, join = st_contains, largest=TRUE) %>%
+  filter(fclass=="building")
+
+# Find which specific census tracts have a home that experienced a blackout
+houses_blackout_centroid <- st_centroid(census_blackout_houses)
+```
+
+```{r}
+# This plot shows us which census tracts in Houston lost power
+tm_shape(texas, bbox=bounding_box) +
+  tm_polygons() +
+tm_shape(census_blackout_houses) +
+  tm_polygons(col = "lightblue") +
+tm_layout(main.title = "Census tracts in Houston that lost power")
+```
+
+```{r}
+# Plot centroids on top of income data - this shows us a map of the census tracts that experienced a blackout on top of the income data
+tm_shape(texas_with_income, bbox = bounding_box) +
+  tm_polygons(col = "median_income",
+              title = "Median Income") +
+  tm_layout(legend.outside = TRUE,
+            legend.width = 0.1) +
+tm_shape(houses_blackout_centroid) +
+  tm_dots() +
+tm_layout(main.title = "Median Income - Census Tracts that experienced a blackout (2017)")
+```
+
+```{r}
+# Compare distribution of median income for census tracts that did and did not experience blackouts
+
+# Join texas_with_income with houses_blackout_centroid to get census tracts with a blackout
+census_w_blackout <- st_join(texas_with_income, houses_blackout_centroid, join = st_intersects, by = "GEOID_Data")
+
+# Find which census tracts in texas_with_income are not in the houses_blackout_centroid to get census tracts without a blackout
+
+```
+
+```{r}
+ggplot(data = census_w_blackout, aes(x = median_income.x)) +
+  geom_histogram(bins = 50) +
+  theme_minimal() +
+  ggtitle("Median Income of Census tracts that experienced a blackout") +
+  xlab("Median Income ($)") +
+  ylab("Count")
+```
+
+I have not been able to figure out how to filter the census data to only the tracts that did not experience a blackout. However, if I could, I would create another histogram like this one to see the shift in distribution. For the tracts that did experience a blackout, it seems that the peak of our histogram, or our most common median income was about $50,000. 
+
+Sources:
+
+1. Wikipedia. 2021. “2021 Texas power crisis.” Last modified October 2, 2021. https://en.wikipedia.org/wiki/2021_Texas_power_crisis.↩︎
+2. Geofabrik GmbH and OpenStreetMap Contributors. (2018). OpenStreetMap Data. Retrieved from https://www.geofabrik.de.
+3. U.S. Census Bureau. (n.d.). American Community Survey. U.S. Department of Commerce. Retrieved from https://www.census.gov/programs-surveys/acs
