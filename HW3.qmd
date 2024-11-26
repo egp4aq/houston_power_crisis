@@ -230,13 +230,15 @@ texas_with_income <- texas_with_income %>%
 ```
 
 ```{r}
+# Plot the houses that experienced a blackout on top of the median income data
 tm_shape(texas_with_income, bbox = bounding_box) +
   tm_polygons(col = "median_income",
               title = "Median Income") +
   tm_layout(legend.outside = TRUE,
             legend.width = 0.1) +
 tm_shape(houses_blackout) +
-  tm_bubbles(col = "pink", size = 0.1)
+  tm_bubbles(col = "pink", size = 0.1) +
+tm_layout(main.title = "Houses that lost power + median income")
 ```
 
 ```{r}
@@ -269,30 +271,34 @@ tm_shape(texas_with_income, bbox = bounding_box) +
   tm_layout(legend.outside = TRUE,
             legend.width = 0.1) +
 tm_shape(houses_blackout_centroid) +
-  tm_dots() +
+  tm_dots(size = 0.01) +
 tm_layout(main.title = "Median Income - Census Tracts that experienced a blackout (2017)")
 ```
 
 ```{r}
 # Compare distribution of median income for census tracts that did and did not experience blackouts
 
-# Join texas_with_income with houses_blackout_centroid to get census tracts with a blackout
-census_w_blackout <- st_join(texas_with_income, houses_blackout_centroid, join = st_intersects, by = "GEOID_Data")
+# Select the income of census tracts that experienced a blackout
+income_w_blackout <- census_blackout_houses %>%
+  select(median_income) %>%
+  st_drop_geometry()
 
-# Find which census tracts in texas_with_income are not in the houses_blackout_centroid to get census tracts without a blackout
-
+# Select the income of census tracts that did not experience a blackout
+income_wo_blackout <- census_blackout_houses %>%
+  filter(is.na(fclass)) %>%
+  select(median_income) %>%
+  st_drop_geometry()
 ```
 
 ```{r}
-ggplot(data = census_w_blackout, aes(x = median_income.x)) +
+# Plot a histogram of the median income of the census tracts that did experience a blackout
+ggplot(data = income_w_blackout, aes(x = median_income)) +
   geom_histogram(bins = 50) +
   theme_minimal() +
   ggtitle("Median Income of Census tracts that experienced a blackout") +
   xlab("Median Income ($)") +
   ylab("Count")
 ```
-
-I have not been able to figure out how to filter the census data to only the tracts that did not experience a blackout. However, if I could, I would create another histogram like this one to see the shift in distribution. For the tracts that did experience a blackout, it seems that the peak of our histogram, or our most common median income was about $50,000. 
 
 Sources:
 
