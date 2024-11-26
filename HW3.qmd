@@ -1,11 +1,13 @@
 ---
-title: "Homework 3"
+title: "Homework 3: Identifying the impacts of extreme weather "
 format: html
 author: Liz Peterson
 date: 11-12-2024
 editor_options: 
   chunk_output_type: console
 warning: FALSE
+messages: FALSE
+quiet: TRUE
 ---
 
 ## Load libraries
@@ -19,6 +21,7 @@ library(tmap)
 library(spData)
 library(spDataLarge)
 library(stars)
+library(patchwork)
 ```
 
 ## Read in data
@@ -113,8 +116,7 @@ blackout_mask <- blackout_mask_raster %>%
 ```{r}
 # Initial map of blackout mask to make sure reclassification worked
 tm_shape(blackout_mask) +
-  tm_polygons() +
-tm_layout(main.title = "Initial blackout mask")
+  tm_polygons()
 ```
 
 ```{r}
@@ -189,7 +191,7 @@ blackout_no_highways <- st_make_valid(blackout_no_highways)
 # Check result by plotting
 tm_shape(blackout_no_highways) +
   tm_polygons() +
-tm_layout(main.title = "Blackout mask with no houses within 200-meters of a highway")
+tm_layout(main.title = "Blackout mask with roads buffer")
 ```
 
 ## Identify homes likely impacted by blackouts
@@ -272,7 +274,7 @@ tm_shape(texas_with_income, bbox = bounding_box) +
             legend.width = 0.1) +
 tm_shape(houses_blackout_centroid) +
   tm_dots(size = 0.01) +
-tm_layout(main.title = "Median Income - Census Tracts that experienced a blackout (2017)")
+tm_layout(main.title = "Median Income - Census tracts that experienced a blackout")
 ```
 
 ```{r}
@@ -284,21 +286,35 @@ income_w_blackout <- census_blackout_houses %>%
   st_drop_geometry()
 
 # Select the income of census tracts that did not experience a blackout
-income_wo_blackout <- census_blackout_houses %>%
-  filter(is.na(fclass)) %>%
+# income_wo_blackout <- houses[!houses %in% houses_blackout]
+income_wo_blackout <- st_join(texas_with_income, houses_blackout, join = st_contains, largest=TRUE) %>%
+  filter(is.na(fclass)) %>% 
   select(median_income) %>%
   st_drop_geometry()
 ```
 
 ```{r}
 # Plot a histogram of the median income of the census tracts that did experience a blackout
-ggplot(data = income_w_blackout, aes(x = median_income)) +
-  geom_histogram(bins = 50) +
+p1 <- ggplot(data = income_w_blackout, aes(x = median_income)) +
+  geom_histogram(bins = 50, fill = "blue") +
   theme_minimal() +
-  ggtitle("Median Income of Census tracts that experienced a blackout") +
+  ggtitle("Median Income: blackout") +
   xlab("Median Income ($)") +
   ylab("Count")
+
+# Plot a histogram of the median income of the census tracts that did not experience a blackout
+p2 <- ggplot(data = income_wo_blackout, aes(x = median_income)) +
+  geom_histogram(bins = 50, fill = "pink") +
+  theme_minimal() +
+  ggtitle("Median Income - No blackout") +
+  xlab("Median Income ($)") +
+  ylab("Count")
+
+p3 <- p1 + p2
+p3
 ```
+
+Based on the histograms above, we see that the distribution of median income in the census tracts that did not experience a blackout is skewed higher than those that did experience a blackout. The peak of the histogram for the census tracts that did not experience a blackout is right at 50,000 dollars, whereas the peak of the histogram for the census tracts that did experience a blackout is below 50,000 dollars. This could show some slight favoring towards higher median income households when it comes to blackout preparedness. Limitations could include outside factors that could influence whether or not a house is prepared for the storm. 
 
 Sources:
 
