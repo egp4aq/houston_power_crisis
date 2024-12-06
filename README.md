@@ -4,7 +4,7 @@
 
 This repository explores the effects of the February 2021 winter storms in Texas. Specifically, it looks at the impact and distribution of homes in the Houston area that lost power.
 
-![Texas ice storm](images/texas.jpg)
+![Texas ice storm](images/texas.png)
 
 ### Repository structure
 
